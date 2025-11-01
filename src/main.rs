@@ -1,3 +1,4 @@
+use std::task::Context;
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
@@ -53,21 +54,12 @@ impl ApplicationContext {
     }
 }
 
+struct SomeConfig;
 
-struct A {
-    value: i32,
+#[bebe::config]
+impl SomeConfig{
+    
 }
-
-struct B {
-    a: &'static A,
-}
-
 fn main() {
-    let mut ctx = ApplicationContext::new();
 
-    ctx.register::<A>(|_ctx| Box::new(A { value: 42 }));
-    ctx.register::<B>(|ctx| Box::new(B { a: ctx.get::<A>() }));
-
-    let b = ctx.get::<B>();
-    println!("{}", b.a.value); // 42
 }
