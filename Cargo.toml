@@ -1,0 +1,9 @@
+[package]
+name = "oxide-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+bebe = { path = "./src/bebe" }
+linkme = "*"
