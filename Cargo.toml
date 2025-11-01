@@ -5,5 +5,5 @@ edition = "2024"
 
 [dependencies]
 
-bebe = { path = "./src/bebe" }
+oxide_macro = { path = "src/oxide_macro" }
 linkme = "*"

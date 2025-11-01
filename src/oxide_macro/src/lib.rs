@@ -1,6 +1,3 @@
-mod di;
-mod util;
-
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{FnArg, ItemImpl, ReturnType, Type, parse_macro_input};
