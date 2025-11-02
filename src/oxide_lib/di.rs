@@ -79,9 +79,4 @@ impl Context {
             .and_then(|b| b.downcast_ref())
     }
 
-    pub fn get_mut<T: 'static>(&mut self) -> Option<&mut T> {
-        self.beans
-            .get_mut(&TypeId::of::<T>())
-            .and_then(|b| b.downcast_mut())
-    }
 }

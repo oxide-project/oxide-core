@@ -2,8 +2,6 @@ mod oxide_lib;
 
 use crate::oxide_lib::di::*;
 use oxide_macro::Component;
-use std::any::Any;
-use std::hash::{Hash, Hasher};
 
 #[derive(Component, Clone)]
 struct SmallService {
@@ -27,7 +25,7 @@ impl SmallService {
         println!("small service finishes");
     }
 }
-#[derive(Component)]
+#[derive(Component, Clone)]
 struct BigService {
     #[wired]
     small_service: SmallService,

@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
-use quote::quote;
-use syn::{FnArg, ItemImpl, ReturnType, Type, parse_macro_input};
+use quote::{format_ident, quote};
+use syn::{FnArg, ItemImpl, ReturnType, Type, parse_macro_input, DeriveInput, Data, Fields};
 
 const BEAN_IDENTIFIER: &'static str = "bean";
 
@@ -67,8 +67,7 @@ pub fn component(item: TokenStream) -> TokenStream {
     let field_types: Vec<_> = wired_fields.iter().map(|(_, t)| t).collect();
 
     let g = quote! {
-        // #input
-
+        #[allow(non_snake_case)]
         fn #ctor_fn(ctx: &Context) -> Box<dyn std::any::Any> {
             let instance = #name {
                 #(
@@ -78,6 +77,7 @@ pub fn component(item: TokenStream) -> TokenStream {
             Box::new(instance)
         }
 
+        #[allow(non_upper_case_globals)]
         #[linkme::distributed_slice(ALL_BEANS)]
         static #def_name: ComponentDef = ComponentDef {
             bean_type: || std::any::TypeId::of::<#name>(),
@@ -88,5 +88,6 @@ pub fn component(item: TokenStream) -> TokenStream {
     };
     g.into()
 }
+
 
 
