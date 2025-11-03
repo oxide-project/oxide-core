@@ -1,6 +1,5 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::spanned::Spanned;
 use syn::{FnArg, ItemImpl, ReturnType, Type, parse_macro_input};
 
 const BEAN_IDENTIFIER: &'static str = "bean";
