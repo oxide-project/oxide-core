@@ -9,7 +9,6 @@ anyhow = "*"
 proc-macro2 = "*"
 quote = "*"
 syn = { version = "*", features = ["full"] }
-once_cell = "1.21.3"
 
 [lib]
 proc-macro = true

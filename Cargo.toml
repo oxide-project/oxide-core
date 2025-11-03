@@ -7,3 +7,7 @@ edition = "2024"
 
 oxide_macro = { path = "src/oxide_macro" }
 linkme = "*"
+
+rusqlite = "*"
+tokio = { version = "*", features = ["full"] }
+rand = "0.10.0-rc.0"

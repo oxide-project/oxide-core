@@ -1,8 +1,49 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{FnArg, ItemImpl, ReturnType, Type, parse_macro_input};
+use syn::{FnArg, ItemImpl, ReturnType, Type, parse_macro_input, ItemFn};
 
 const BEAN_IDENTIFIER: &'static str = "bean";
+
+
+#[proc_macro_attribute]
+pub fn bean_provider(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let func = parse_macro_input!(item as ItemFn);
+    let name = &func.sig.ident;
+    let fn_vis = &func.vis;
+    let fn_block = &func.block;
+    let output = &func.sig.output;
+
+    // извлекаем возвращаемый тип
+    let return_ty = match output {
+        syn::ReturnType::Type(_, ty) => ty.as_ref().clone(),
+        syn::ReturnType::Default => {
+            panic!("#[bean_provider] function must have return type");
+        }
+    };
+
+    // имя для статического определения
+    let def_ident = syn::Ident::new(
+        &format!("__BEAN_DEF_{}", name),
+        name.span(),
+    );
+
+    let expanded = quote! {
+        #fn_vis fn #name() #output #fn_block
+
+        #[allow(non_upper_case_globals)]
+        #[linkme::distributed_slice(ALL_BEANS)]
+        static #def_ident: ComponentDef = ComponentDef {
+            bean_type: || std::any::TypeId::of::<#return_ty>(),
+            deps: &[],
+            name: stringify!(#name),
+            ctor: |_| {
+                Box::leak(Box::new(#name())) as  &'static dyn std::any::Any
+            },
+        };
+    };
+
+    expanded.into()
+}
 
 // #[proc_macro_attribute]
 fn bean(_attr: TokenStream, item: TokenStream) -> TokenStream {
