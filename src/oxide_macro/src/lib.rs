@@ -1,6 +1,7 @@
 use proc_macro::TokenStream;
-use quote::{format_ident, quote};
-use syn::{FnArg, ItemImpl, ReturnType, Type, parse_macro_input, DeriveInput, Data, Fields};
+use quote::quote;
+use syn::spanned::Spanned;
+use syn::{FnArg, ItemImpl, ReturnType, Type, parse_macro_input};
 
 const BEAN_IDENTIFIER: &'static str = "bean";
 
@@ -43,7 +44,6 @@ pub fn component(item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as syn::DeriveInput);
     let name = &input.ident;
 
-    // список полей с #[wired]
     let mut wired_fields = Vec::new();
     let mut dep_types = Vec::new();
 
@@ -52,7 +52,7 @@ pub fn component(item: TokenStream) -> TokenStream {
             for field in &fields.named {
                 if field.attrs.iter().any(|a| a.path().is_ident("wired")) {
                     let ident = field.ident.as_ref().unwrap();
-                    let ty = &field.ty;
+                    let ty = strip_refs_and_lifetimes(&field.ty);
                     wired_fields.push((ident.clone(), ty.clone()));
                     dep_types.push(quote! { || std::any::TypeId::of::<#ty>() });
                 }
@@ -60,21 +60,28 @@ pub fn component(item: TokenStream) -> TokenStream {
         }
     }
 
-    // имя фабрики
     let ctor_fn = syn::Ident::new(&format!("__create_{}", name), name.span());
     let def_name = syn::Ident::new(&format!("__DEF_{}", name), name.span());
     let field_idents: Vec<_> = wired_fields.iter().map(|(i, _)| i).collect();
-    let field_types: Vec<_> = wired_fields.iter().map(|(_, t)| t).collect();
-
-    let g = quote! {
+    let field_types: Vec<_> = wired_fields
+        .iter()
+        .map(|(_, t)| {
+            if let Type::Reference(r) = t {
+                (*r.elem).clone()
+            } else {
+                t.clone()
+            }
+        })
+        .collect();
+    let expanded = quote! {
         #[allow(non_snake_case)]
-        fn #ctor_fn(ctx: &Context) -> Box<dyn std::any::Any> {
+        fn #ctor_fn(ctx: &Context) -> &'static dyn std::any::Any {
             let instance = #name {
                 #(
-                    #field_idents: ctx.get::<#field_types>().unwrap().clone(),
+                    #field_idents: ctx.get::<#field_types>().expect("not found in the context"),
                 )*
             };
-            Box::new(instance)
+            Box::leak(Box::new(instance)) as &'static dyn std::any::Any
         }
 
         #[allow(non_upper_case_globals)]
@@ -86,8 +93,15 @@ pub fn component(item: TokenStream) -> TokenStream {
             ctor: #ctor_fn,
         };
     };
-    g.into()
+    expanded.into()
 }
 
-
-
+fn strip_refs_and_lifetimes(ty: &syn::Type) -> syn::Type {
+    match ty {
+        syn::Type::Reference(r) => {
+            let inner = (*r.elem).clone();
+            inner
+        }
+        _ => ty.to_owned(),
+    }
+}

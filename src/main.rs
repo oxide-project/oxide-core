@@ -1,12 +1,13 @@
 mod oxide_lib;
 
+use std::any::Any;
 use crate::oxide_lib::di::*;
 use oxide_macro::Component;
 
 #[derive(Component, Clone)]
 struct SmallService {
     #[wired]
-    tiny_service: TinyService,
+    tiny_service: &'static TinyService,
 }
 
 #[derive(Component, Clone)]
@@ -28,9 +29,9 @@ impl SmallService {
 #[derive(Component, Clone)]
 struct BigService {
     #[wired]
-    small_service: SmallService,
+    small_service: &'static SmallService,
     #[wired]
-    tiny_service: TinyService,
+    tiny_service: &'static TinyService,
 }
 
 impl BigService {

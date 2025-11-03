@@ -1,19 +1,27 @@
-use std::any::{Any, TypeId};
-use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
-use linkme::distributed_slice;
 use crate::oxide_lib::util::topo_sort;
+use linkme::distributed_slice;
+use std::any::{type_name, type_name_of_val, Any, TypeId};
+use std::collections::{HashMap, HashSet};
+use std::fmt::{Debug, Display, Formatter};
+use std::hash::{Hash, Hasher};
 
 #[distributed_slice]
 pub static ALL_BEANS: [ComponentDef] = [..];
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ComponentDef {
     pub bean_type: fn() -> TypeId,
     pub name: &'static str,
-    pub deps: &'static [fn() -> TypeId], // зависимости
-    pub ctor: fn(&Context) -> Box<dyn Any>,
+    pub deps: &'static [fn() -> TypeId],
+    pub ctor: fn(&Context) -> &'static dyn Any, // ✨ теперь &'static dyn Any
 }
+
+impl Debug for ComponentDef{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "name:{}", self.name)
+    }
+}
+
 impl ComponentDef {
     fn b_type(&self) -> TypeId {
         (self.bean_type)()
@@ -36,7 +44,7 @@ impl Hash for ComponentDef {
 
 #[derive(Debug)]
 pub struct Context {
-    beans: HashMap<TypeId, Box<dyn Any>>,
+    beans: HashMap<TypeId, &'static dyn Any>, // ✨ вместо Box<dyn Any>
 }
 
 impl Context {
@@ -73,10 +81,9 @@ impl Context {
         }
     }
 
-    pub fn get<T: 'static>(&self) -> Option<&T> {
+    pub fn get<T: 'static>(&self) -> Option<&'static T> {
         self.beans
             .get(&TypeId::of::<T>())
             .and_then(|b| b.downcast_ref())
     }
-
 }
