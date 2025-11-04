@@ -1,8 +1,8 @@
 use crate::oxide_lib::util::topo_sort;
 use linkme::distributed_slice;
-use std::any::{type_name, type_name_of_val, Any, TypeId};
+use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 
 #[distributed_slice]

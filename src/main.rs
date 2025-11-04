@@ -1,7 +1,7 @@
 mod oxide_lib;
 
 use crate::oxide_lib::di::*;
-use oxide_macro::{bean_provider, Component};
+use oxide_macro::{Component, bean_provider};
 use rusqlite::fallible_iterator::FallibleIterator;
 use rusqlite::{Connection, Row};
 use std::io::stdin;
@@ -10,6 +10,17 @@ use std::io::stdin;
 struct UserService {
     #[wired]
     dao: &'static Dao,
+}
+#[derive(Debug)]
+struct DbConfig {
+    url: String,
+}
+
+#[bean_provider]
+fn db_config_provider() -> DbConfig {
+    DbConfig {
+        url: String::from("somefile.sqlite"),
+    }
 }
 
 impl UserService {
@@ -37,9 +48,15 @@ impl UserService {
     }
 }
 
+#[derive(Component)]
+struct Balls;
+
+#[derive(Component)]
+struct Amogus;
+
 #[bean_provider]
-fn conn_provider() -> Connection {
-    let c = Connection::open("storage.sqlite").unwrap();
+fn conn_provider(db_config: &'static DbConfig) -> Connection {
+    let c = Connection::open(db_config.url.as_str()).unwrap();
     let _ = c.execute("DROP TABLE IF EXISTS user", []);
     let _ = c
         .execute(
@@ -47,6 +64,7 @@ fn conn_provider() -> Connection {
             (),
         )
         .unwrap();
+    println!("CONFIG USED: {db_config:?}");
     // здесь будет какая то инициализация например, но вообще мы потом это спихнём на раннеры/стартеры
     // плюс добавим простенький механизм для исполнения каких либо действий, по типу
     // спрингового pre-build/post-destroy

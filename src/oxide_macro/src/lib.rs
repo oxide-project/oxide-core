@@ -1,58 +1,52 @@
 use proc_macro::TokenStream;
-use quote::quote;
-use syn::{FnArg, ItemImpl, ReturnType, Type, parse_macro_input, ItemFn};
+use quote::{ToTokens, quote};
+use syn::{FnArg, ItemFn, ItemImpl, ReturnType, Type, parse_macro_input};
 
 const BEAN_IDENTIFIER: &'static str = "bean";
-
 
 #[proc_macro_attribute]
 pub fn bean_provider(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let func = parse_macro_input!(item as ItemFn);
+    let fullbody = func.clone();
     let name = &func.sig.ident;
-    let fn_vis = &func.vis;
-    let fn_block = &func.block;
-    let output = &func.sig.output;
+    let return_ty =
+        get_output_type_of_sig(&func.sig).expect("Bean provider must have return type!");
 
-    // извлекаем возвращаемый тип
-    let return_ty = match output {
-        syn::ReturnType::Type(_, ty) => ty.as_ref().clone(),
-        syn::ReturnType::Default => {
-            panic!("#[bean_provider] function must have return type");
-        }
-    };
-
-    // имя для статического определения
-    let def_ident = syn::Ident::new(
-        &format!("__BEAN_DEF_{}", name),
-        name.span(),
-    );
+    let input_types: Vec<_> = get_input_types_of_sig(&func.sig)
+        .iter()
+        .map(|t| {
+            if let Type::Reference(r) = t {
+                (*r.elem).clone()
+            } else {
+                t.clone()
+            }
+        })
+        .collect();
+    let input_type_funcs = input_types.iter().cloned().map(|it| {
+        quote! { || std::any::TypeId::of::<#it>() }
+    }).collect::<Vec<_>>();
+    let def_ident = syn::Ident::new(&format!("__BEAN_DEF_{}", name), name.span());
+    let ctor_fn = syn::Ident::new(&format!("__bean_create_{}", name), name.span());
 
     let expanded = quote! {
-        #fn_vis fn #name() #output #fn_block
 
+        #fullbody
+
+        fn #ctor_fn(ctx: &Context)-> &'static dyn std::any::Any{
+            let instance = #name(#(ctx.get::<#input_types>().expect("not found")), *);
+            Box::leak(Box::new(instance)) as &'static dyn std::any::Any
+        }
         #[allow(non_upper_case_globals)]
         #[linkme::distributed_slice(ALL_BEANS)]
         static #def_ident: ComponentDef = ComponentDef {
             bean_type: || std::any::TypeId::of::<#return_ty>(),
-            deps: &[],
+            deps: &[ #( #input_type_funcs ),* ],
             name: stringify!(#name),
-            ctor: |_| {
-                Box::leak(Box::new(#name())) as  &'static dyn std::any::Any
-            },
+            ctor: #ctor_fn,
         };
     };
 
     expanded.into()
-}
-
-// #[proc_macro_attribute]
-fn bean(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    item.into()
-}
-// #[proc_macro_attribute]
-fn config(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(item as ItemImpl);
-    todo!()
 }
 
 fn get_output_type_of_sig(sig: &syn::Signature) -> Option<Type> {
